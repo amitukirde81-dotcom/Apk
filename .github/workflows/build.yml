@@ -462,4 +462,73 @@ jobs:
                   etKm = EditText(this).apply {
                       inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
                       setText(fmt(Prefs.maxKm(this@MainActivity)))
-    
+                  }
+                  root.addView(etKm)
+
+                  swDrop = Switch(this).apply {
+                      text = "ड्रॉप लोकेशन फिल्टर"
+                      textSize = 16f
+                      isChecked = Prefs.dropOn(this@MainActivity)
+                  }
+                  root.addView(swDrop.also { it.setPadding(0, pad, 0, 0) })
+
+                  root.addView(title("ड्रॉपमध्ये यापैकी नाव असेल तरच Accept (स्वल्पविराम किंवा नवीन ओळ)"))
+                  etNames = EditText(this).apply {
+                      inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+                      minLines = 5
+                      setText(Prefs.dropNames(this@MainActivity))
+                  }
+                  root.addView(etNames)
+
+                  swVib = Switch(this).apply {
+                      text = "Accept झाल्यावर व्हायब्रेशन"
+                      textSize = 16f
+                      isChecked = Prefs.vibrate(this@MainActivity)
+                  }
+                  root.addView(swVib.also { it.setPadding(0, pad, 0, 0) })
+
+                  root.addView(Button(this).apply {
+                      text = "सेव्ह करा"
+                      setOnClickListener { save() }
+                  })
+
+                  root.addView(title("शेवटचा निर्णय"))
+                  tvLast = TextView(this)
+                  root.addView(tvLast)
+
+                  root.addView(title("शेवटची वाचलेली स्क्रीन (काम केलं नाही तर हा मजकूर पाठवा)"))
+                  tvDump = TextView(this).apply { setTextIsSelectable(true) }
+                  root.addView(tvDump)
+
+                  setContentView(ScrollView(this).apply { addView(root) })
+              }
+
+              override fun onResume() {
+                  super.onResume()
+                  tvStatus.text = if (serviceEnabled()) "Accessibility सेवा: चालू आहे" else "Accessibility सेवा: बंद आहे (खाली बटण दाबून चालू करा)"
+                  tvLast.text = Prefs.last(this).ifEmpty { "अजून काही नाही" }
+                  tvDump.text = Prefs.dump(this).ifEmpty { "अजून काही नाही" }
+              }
+
+              private fun save() {
+                  Prefs.setMinFare(this, etFare.text.toString().toDoubleOrNull() ?: Prefs.minFare(this))
+                  Prefs.setMaxKm(this, etKm.text.toString().toDoubleOrNull() ?: Prefs.maxKm(this))
+                  Prefs.setDropOn(this, swDrop.isChecked)
+                  Prefs.setDropNames(this, etNames.text.toString())
+                  Prefs.setVibrate(this, swVib.isChecked)
+                  Toast.makeText(this, "सेव्ह झालं", Toast.LENGTH_SHORT).show()
+              }
+
+              private fun serviceEnabled(): Boolean {
+                  val s = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
+                      ?: return false
+                  return s.contains("$packageName/")
+              }
+          }
+          EOF_FILE
+      - name: Build debug APK
+        run: gradle assembleDebug --no-daemon --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TripAccept-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
